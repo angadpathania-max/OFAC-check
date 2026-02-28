@@ -39,16 +39,18 @@ function search(query, threshold, maxResults) {
   if (!query) return [];
 
   const entries = loadData();
-  const names = entries.map((e) => e.name);
-  const qLower = query.toLowerCase();
+  const names = entries.map((e) => (e && e.name != null ? String(e.name).trim() : ""));
+  const qLower = (query || "").toLowerCase();
 
   // 1) Contains match: any listed name that contains the query (case-insensitive) gets score 95
   const containsSet = new Set();
   const containsMatches = [];
   for (let i = 0; i < entries.length; i++) {
-    if (entries[i].name && entries[i].name.toLowerCase().includes(qLower)) {
-      containsSet.add(entries[i].name);
-      containsMatches.push(rowToMatch(entries[i], 95));
+    const row = entries[i];
+    const nameStr = row && row.name != null ? String(row.name).trim() : "";
+    if (nameStr && nameStr.toLowerCase().includes(qLower)) {
+      containsSet.add(nameStr);
+      containsMatches.push(rowToMatch(row, 95));
     }
   }
 
@@ -62,10 +64,11 @@ function search(query, threshold, maxResults) {
 
   const seen = new Set(containsSet);
   const fuzzyMatches = [];
+  const nameToEntry = new Map(entries.map((e) => [(e && e.name != null ? String(e.name).trim() : ""), e]));
   for (const [name, score] of fuzzyResults) {
-    if (seen.has(name)) continue;
+    if (!name || seen.has(name)) continue;
     seen.add(name);
-    const row = entries.find((e) => e.name === name) || {};
+    const row = nameToEntry.get(name) || {};
     fuzzyMatches.push(rowToMatch(row, score));
   }
 
