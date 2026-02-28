@@ -1,0 +1,8 @@
+{
+  "name": "netlify-functions-ofac",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "fuzzball": "^2.1.2"
+  }
+}

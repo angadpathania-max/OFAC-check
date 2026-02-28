@@ -8,7 +8,7 @@ This guide walks you through putting the OFAC Business Screening site on Netlify
 - **Publish:** Serves the static site from the `public` folder (the search page and CSS).
 - **Functions:** Runs serverless search and stats APIs that use the generated JSON.
 
-No Flask server or database runs on Netlify; search is handled by serverless functions.
+No Flask server or database runs on Netlify. The **build** uses Python to generate the data file; the **search** and **stats** APIs are Node.js serverless functions (Netlify does not run Python at request time).
 
 ## Prerequisites
 
@@ -52,8 +52,8 @@ The first build may take 2–5 minutes because it:
 
 - Parses all XML files in `OFAC DB`
 - Writes `ofac_data.json` for the functions
-- Installs Python dependencies for the functions (e.g. rapidfuzz)
-- Publishes the site and functions
+- Installs Node dependencies for the functions (e.g. `fuzzball` for fuzzy search)
+- Publishes the site and **Node.js** functions (search + stats)
 
 If the build fails, check the build log. Common issues:
 
