@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OFAC Business Screening</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="wrapper">
+    <header class="header">
+      <h1>OFAC Business Screening</h1>
+      <p class="tagline">Screen partner business names against the OFAC sanctions list</p>
+      <p class="stats" id="stats">Loading...</p>
+    </header>
+
+    <main class="main">
+      <form class="search-form" id="searchForm">
+        <label for="businessName">Business name</label>
+        <div class="input-row">
+          <input
+            type="text"
+            id="businessName"
+            name="name"
+            placeholder="e.g. Acme Corp, National Bank of..."
+            autocomplete="organization"
+            required
+          >
+          <button type="submit" id="submitBtn">Search</button>
+        </div>
+        <div class="options">
+          <label class="option">
+            <span>Min. match score (0-100)</span>
+            <input type="number" id="threshold" name="threshold" min="0" max="100" value="60">
+          </label>
+          <label class="option">
+            <span>Max results</span>
+            <input type="number" id="maxResults" name="max" min="1" max="500" value="100">
+          </label>
+        </div>
+      </form>
+
+      <section class="results-section" id="resultsSection" aria-live="polite">
+        <div class="results-header hidden" id="resultsHeader">
+          <h2 id="resultsTitle">Matches</h2>
+          <p class="results-meta" id="resultsMeta"></p>
+        </div>
+        <div class="message" id="message"></div>
+        <div class="table-wrap" id="tableWrap">
+          <table class="results-table" id="resultsTable">
+            <thead>
+              <tr>
+                <th>Match score</th>
+                <th>Listed name</th>
+                <th>Type</th>
+                <th>Source</th>
+                <th>Ref</th>
+              </tr>
+            </thead>
+            <tbody id="resultsBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Data from OFAC lists. This tool is for screening only; verify matches before making decisions.</p>
+    </footer>
+  </div>
+
+  <script>
+    (function() {
+      var form = document.getElementById('searchForm');
+      var input = document.getElementById('businessName');
+      var submitBtn = document.getElementById('submitBtn');
+      var statsEl = document.getElementById('stats');
+      var resultsHeader = document.getElementById('resultsHeader');
+      var resultsTitle = document.getElementById('resultsTitle');
+      var resultsMeta = document.getElementById('resultsMeta');
+      var messageEl = document.getElementById('message');
+      var tableWrap = document.getElementById('tableWrap');
+      var tbody = document.getElementById('resultsBody');
+
+      var SEARCH_API = '/.netlify/functions/search';
+      var STATS_API = '/.netlify/functions/stats';
+
+      var ALIAS_LABELS = { '1400': 'A.K.A.', '1401': 'F.K.A.', '1402': 'N.K.A.', '1403': 'Name' };
+
+      function loadStats() {
+        fetch(STATS_API)
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+            statsEl.textContent = d.entries != null ? (d.entries.toLocaleString() + ' entries in screening list') : 'Stats unavailable';
+          })
+          .catch(function() { statsEl.textContent = 'Could not load list size'; });
+      }
+
+      function showMessage(text, type) {
+        type = type || 'info';
+        messageEl.textContent = text;
+        messageEl.className = 'message ' + type;
+        messageEl.hidden = false;
+        tableWrap.classList.add('hidden');
+      }
+
+      function hideMessage() {
+        messageEl.hidden = true;
+        messageEl.className = 'message';
+        tableWrap.classList.remove('hidden');
+      }
+
+      function escapeHtml(s) {
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+      }
+
+      function renderMatches(data) {
+        if (data.error) {
+          showMessage(data.error, 'error');
+          resultsHeader.classList.add('hidden');
+          return;
+        }
+
+        hideMessage();
+        var query = data.query || '';
+        var matches = data.matches || [];
+        var count = data.count != null ? data.count : matches.length;
+
+        resultsTitle.textContent = matches.length ? 'Possible matches' : 'No matches';
+        resultsMeta.textContent = query ? ('Query: "' + query + '" - ' + count + ' match' + (count !== 1 ? 'es' : '')) : '';
+        resultsHeader.classList.remove('hidden');
+
+        tbody.innerHTML = '';
+        if (!matches.length) {
+          var row = tbody.insertRow();
+          row.innerHTML = '<td colspan="5" class="empty">No matches above the score threshold.</td>';
+          return;
+        }
+
+        matches.forEach(function(m) {
+          var tr = tbody.insertRow();
+          tr.innerHTML = '<td><span class="score" data-score="' + m.score + '">' + m.score + '%</span></td>' +
+            '<td class="name">' + escapeHtml(m.name) + '</td>' +
+            '<td>' + (ALIAS_LABELS[m.alias_type_id] || m.alias_type_id || '-') + '</td>' +
+            '<td><code>' + escapeHtml(m.source_file || '-') + '</code></td>' +
+            '<td><code>' + escapeHtml(m.fixed_ref || '-') + '</code></td>';
+        });
+      }
+
+      form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        var name = (input.value || '').trim();
+        if (!name) return;
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Searching...';
+        showMessage('Searching...', 'info');
+        resultsHeader.classList.add('hidden');
+
+        var params = new URLSearchParams({
+          name: name,
+          threshold: document.getElementById('threshold').value || 60,
+          max: document.getElementById('maxResults').value || 100
+        });
+
+        fetch(SEARCH_API + '?' + params)
+          .then(function(res) { return res.json(); })
+          .then(function(data) {
+            renderMatches(data);
+          })
+          .catch(function() {
+            renderMatches({ error: 'Network error. Please try again.' });
+          })
+          .finally(function() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Search';
+          });
+      });
+
+      loadStats();
+    })();
+  </script>
+</body>
+</html>

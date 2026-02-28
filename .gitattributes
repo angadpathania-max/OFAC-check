@@ -1,0 +1,5 @@
+# Track large OFAC XML files with Git LFS (GitHub limit is 100 MB per file)
+"OFAC DB/*.xml" filter=lfs diff=lfs merge=lfs -text
+"OFAC DB/sdn_advanced.xml" filter=lfs diff=lfs merge=lfs -text
+OFAC[[:space:]]DB/sdn_advanced.xml filter=lfs diff=lfs merge=lfs -text
+OFAC[[:space:]]DB/*.xml filter=lfs diff=lfs merge=lfs -text

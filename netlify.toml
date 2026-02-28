@@ -1,0 +1,17 @@
+# Netlify config for OFAC Business Screening
+# Build: generate OFAC JSON from XML, then publish static site + functions
+
+[build]
+  command = "python scripts/export_ofac_data.py"
+  publish = "public"
+  functions = "netlify/functions"
+
+[build.environment]
+  # Use Python 3 for the export script (uses only stdlib + project's ofac_parser)
+  PYTHON_VERSION = "3.11"
+
+# Optional: redirect root to index for SPA-style routing (not required for single page)
+# [[redirects]]
+#   from = "/*"
+#   to = "/index.html"
+#   status = 200

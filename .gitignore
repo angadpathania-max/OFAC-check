@@ -1,0 +1,16 @@
+# Generated at build time (Netlify); do not commit
+netlify/functions/ofac_data.json
+
+# Local Flask/SQLite
+ofac_screening.db
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
