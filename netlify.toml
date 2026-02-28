@@ -2,8 +2,8 @@
 # Build: generate OFAC JSON from XML, then publish static site + functions
 
 [build]
-  # Pull Git LFS files first (sdn_advanced.xml is stored in LFS); then generate ofac_data.json
-  command = "git lfs pull && python scripts/export_ofac_data.py"
+  # Pull LFS, generate ofac_data.json, then install Node deps for functions (fuzzball)
+  command = "git lfs pull && python scripts/export_ofac_data.py && cd netlify/functions && npm install && cd ../.."
   publish = "public"
   functions = "netlify/functions"
 
