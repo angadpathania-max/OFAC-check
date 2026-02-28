@@ -15,7 +15,9 @@
   GIT_LFS_FETCH_INCLUDE = "*.xml"
 
 # Give the search function more time (cold start + loading large JSON)
+# included_files = bundle ofac_data.json with functions (created during build; not in git)
 [functions]
+  included_files = ["./netlify/functions/ofac_data.json"]
   [functions.search]
     timeout = 26
 
