@@ -53,11 +53,17 @@
           <table class="results-table" id="resultsTable">
             <thead>
               <tr>
-                <th>Match score</th>
+                <th>Contains</th>
+                <th>Fuzzy</th>
+                <th>Blended</th>
                 <th>Listed name</th>
                 <th>Type</th>
                 <th>Source</th>
                 <th>Ref</th>
+                <th>Country</th>
+                <th>Address</th>
+                <th>Party Type</th>
+                <th>Sanctions Program</th>
               </tr>
             </thead>
             <tbody id="resultsBody"></tbody>
@@ -137,17 +143,32 @@
         tbody.innerHTML = '';
         if (!matches.length) {
           var row = tbody.insertRow();
-          row.innerHTML = '<td colspan="5" class="empty">No matches above the score threshold.</td>';
+          row.innerHTML = '<td colspan="12" class="empty">No matches above the score threshold.</td>';
           return;
+        }
+
+        function scoreCell(val) {
+          if (val == null || val === '') return '<td class="score-cell">-</td>';
+          return '<td class="score-cell"><span class="score" data-score="' + val + '">' + val + '%</span></td>';
+        }
+        function textCell(val) {
+          return '<td>' + escapeHtml(val != null && val !== '' ? val : '-') + '</td>';
         }
 
         matches.forEach(function(m) {
           var tr = tbody.insertRow();
-          tr.innerHTML = '<td><span class="score" data-score="' + m.score + '">' + m.score + '%</span></td>' +
+          tr.innerHTML =
+            scoreCell(m.contains_score) +
+            scoreCell(m.fuzzy_score) +
+            scoreCell(m.blended_score) +
             '<td class="name">' + escapeHtml(m.name) + '</td>' +
             '<td>' + (ALIAS_LABELS[m.alias_type_id] || m.alias_type_id || '-') + '</td>' +
             '<td><code>' + escapeHtml(m.source_file || '-') + '</code></td>' +
-            '<td><code>' + escapeHtml(m.fixed_ref || '-') + '</code></td>';
+            '<td><code>' + escapeHtml(m.fixed_ref || '-') + '</code></td>' +
+            textCell(m.country) +
+            textCell(m.address) +
+            textCell(m.party_type) +
+            textCell(m.sanctions_program);
         });
       }
 

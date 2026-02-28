@@ -19,14 +19,29 @@ def _get_text(el):
     return (el.text or "").strip()
 
 
+def _load_party_subtype_map(root) -> dict:
+    """Build PartySubType ID -> label from ReferenceValueSets."""
+    out = {}
+    rvs = root.find(_tag("ReferenceValueSets"))
+    if rvs is None:
+        return out
+    pst = rvs.find(_tag("PartySubTypeValues"))
+    if pst is None:
+        return out
+    for el in pst.findall(_tag("PartySubType")):
+        sid = el.get("ID", "")
+        text = (el.text or "").strip()
+        if sid:
+            out[sid] = text or sid
+    return out
+
+
 def parse_ofac_xml(filepath: str) -> list[dict]:
     """
     Parse a single OFAC advanced XML file and yield records with:
-    - name: the party/alias name
-    - fixed_ref: DistinctParty FixedRef
-    - profile_id: Profile ID
-    - alias_type_id: 1400 A.K.A., 1401 F.K.A., 1402 N.K.A., 1403 Name
-    - source_file: basename of the XML file
+    - name, fixed_ref, profile_id, alias_type_id, source_file
+    - party_type: from Profile PartySubTypeID (e.g. Individual, Entity, Vessel, Aircraft)
+    - country, address, sanctions_program: reserved for future parsing (empty for now)
     """
     filepath = os.path.abspath(filepath)
     source_name = os.path.basename(filepath)
@@ -38,11 +53,15 @@ def parse_ofac_xml(filepath: str) -> list[dict]:
     except ET.ParseError as e:
         raise ValueError(f"Invalid XML in {filepath}: {e}") from e
 
+    party_subtype_map = _load_party_subtype_map(root)
+
     # DistinctParties > DistinctParty (default namespace)
     for dparty in root.findall(f".//{_tag('DistinctParty')}"):
         fixed_ref = dparty.get("FixedRef", "")
         for profile in dparty.findall(f".//{_tag('Profile')}"):
             profile_id = profile.get("ID", "")
+            party_subtype_id = profile.get("PartySubTypeID", "")
+            party_type = party_subtype_map.get(party_subtype_id, party_subtype_id or "")
             for alias in profile.findall(f".//{_tag('Alias')}"):
                 alias_type_id = alias.get("AliasTypeID", "")
                 for docname in alias.findall(f".//{_tag('DocumentedName')}"):
@@ -58,6 +77,10 @@ def parse_ofac_xml(filepath: str) -> list[dict]:
                                         "profile_id": profile_id,
                                         "alias_type_id": alias_type_id,
                                         "source_file": source_name,
+                                        "country": "",
+                                        "address": "",
+                                        "party_type": party_type,
+                                        "sanctions_program": "",
                                     }
                                 )
     return records

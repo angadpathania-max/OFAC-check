@@ -45,6 +45,10 @@ def main():
             "profile_id": r.get("profile_id", ""),
             "alias_type_id": r.get("alias_type_id", ""),
             "source_file": r.get("source_file", ""),
+            "country": r.get("country", ""),
+            "address": r.get("address", ""),
+            "party_type": r.get("party_type", ""),
+            "sanctions_program": r.get("sanctions_program", ""),
         }
         for r in records
     ]

@@ -21,14 +21,21 @@ function loadData() {
   return _entries;
 }
 
-function rowToMatch(row, score) {
+function rowToMatch(row, opts) {
+  const { containsScore, fuzzyScore, blendedScore } = opts;
   return {
     name: row.name || "",
     fixed_ref: row.fixed_ref || "",
     profile_id: row.profile_id || "",
     alias_type_id: row.alias_type_id || "",
     source_file: row.source_file || "",
-    score: Math.round(score),
+    country: row.country != null ? row.country : "",
+    address: row.address != null ? row.address : "",
+    party_type: row.party_type != null ? row.party_type : "",
+    sanctions_program: row.sanctions_program != null ? row.sanctions_program : "",
+    contains_score: containsScore != null ? Math.round(containsScore) : null,
+    fuzzy_score: fuzzyScore != null ? Math.round(fuzzyScore) : null,
+    blended_score: Math.round(blendedScore),
   };
 }
 
@@ -45,12 +52,13 @@ function search(query, threshold, maxResults) {
   // 1) Contains match: any listed name that contains the query (case-insensitive) gets score 95
   const containsSet = new Set();
   const containsMatches = [];
+  const CONTAINS_SCORE = 95;
   for (let i = 0; i < entries.length; i++) {
     const row = entries[i];
     const nameStr = row && row.name != null ? String(row.name).trim() : "";
     if (nameStr && nameStr.toLowerCase().includes(qLower)) {
       containsSet.add(nameStr);
-      containsMatches.push(rowToMatch(row, 95));
+      containsMatches.push(rowToMatch(row, { containsScore: CONTAINS_SCORE, fuzzyScore: null, blendedScore: CONTAINS_SCORE }));
     }
   }
 
@@ -69,12 +77,12 @@ function search(query, threshold, maxResults) {
     if (!name || seen.has(name)) continue;
     seen.add(name);
     const row = nameToEntry.get(name) || {};
-    fuzzyMatches.push(rowToMatch(row, score));
+    fuzzyMatches.push(rowToMatch(row, { containsScore: null, fuzzyScore: score, blendedScore: score }));
   }
 
-  // 3) Merge: contains first (score 95), then fuzzy; sort by score desc, take top maxResults
+  // 3) Merge: contains first (score 95), then fuzzy; sort by blended score desc, take top maxResults
   const merged = [...containsMatches, ...fuzzyMatches]
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.blended_score - a.blended_score)
     .slice(0, maxResults);
 
   return merged;
