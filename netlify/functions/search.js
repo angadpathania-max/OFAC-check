@@ -21,6 +21,17 @@ function loadData() {
   return _entries;
 }
 
+function rowToMatch(row, score) {
+  return {
+    name: row.name || "",
+    fixed_ref: row.fixed_ref || "",
+    profile_id: row.profile_id || "",
+    alias_type_id: row.alias_type_id || "",
+    source_file: row.source_file || "",
+    score: Math.round(score),
+  };
+}
+
 function search(query, threshold, maxResults) {
   threshold = threshold != null ? threshold : DEFAULT_THRESHOLD;
   maxResults = maxResults != null ? maxResults : DEFAULT_MAX;
@@ -29,24 +40,41 @@ function search(query, threshold, maxResults) {
 
   const entries = loadData();
   const names = entries.map((e) => e.name);
+  const qLower = query.toLowerCase();
 
-  const results = fuzzball.extract(query, names, {
+  // 1) Contains match: any listed name that contains the query (case-insensitive) gets score 95
+  const containsSet = new Set();
+  const containsMatches = [];
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i].name && entries[i].name.toLowerCase().includes(qLower)) {
+      containsSet.add(entries[i].name);
+      containsMatches.push(rowToMatch(entries[i], 95));
+    }
+  }
+
+  // 2) Fuzzy match: token_set_ratio = best for names (word order, extra words, typos).
+  //    threshold (cutoff) = only include fuzzy results with score >= this (e.g. 60 = permissive, 90 = strict).
+  const fuzzyResults = fuzzball.extract(query, names, {
     scorer: fuzzball.token_set_ratio,
     limit: maxResults,
     cutoff: threshold,
   });
 
-  return results.map(([name, score]) => {
+  const seen = new Set(containsSet);
+  const fuzzyMatches = [];
+  for (const [name, score] of fuzzyResults) {
+    if (seen.has(name)) continue;
+    seen.add(name);
     const row = entries.find((e) => e.name === name) || {};
-    return {
-      name: row.name || name,
-      fixed_ref: row.fixed_ref || "",
-      profile_id: row.profile_id || "",
-      alias_type_id: row.alias_type_id || "",
-      source_file: row.source_file || "",
-      score: Math.round(score),
-    };
-  });
+    fuzzyMatches.push(rowToMatch(row, score));
+  }
+
+  // 3) Merge: contains first (score 95), then fuzzy; sort by score desc, take top maxResults
+  const merged = [...containsMatches, ...fuzzyMatches]
+    .sort((a, b) => b.score - a.score)
+    .slice(0, maxResults);
+
+  return merged;
 }
 
 const headers = {
