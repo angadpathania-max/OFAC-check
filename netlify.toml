@@ -2,13 +2,17 @@
 # Build: generate OFAC JSON from XML, then publish static site + functions
 
 [build]
-  command = "python scripts/export_ofac_data.py"
+  # Pull Git LFS files first (sdn_advanced.xml is stored in LFS); then generate ofac_data.json
+  command = "git lfs pull && python scripts/export_ofac_data.py"
   publish = "public"
   functions = "netlify/functions"
 
 [build.environment]
   # Use Python 3 for the export script (uses only stdlib + project's ofac_parser)
   PYTHON_VERSION = "3.11"
+  # Fetch Git LFS files for *.xml so OFAC DB has real XML, not pointer files
+  GIT_LFS_ENABLED = "true"
+  GIT_LFS_FETCH_INCLUDE = "*.xml"
 
 # Give the search function more time (cold start + loading large JSON)
 [functions]
