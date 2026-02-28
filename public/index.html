@@ -168,12 +168,20 @@
         });
 
         fetch(SEARCH_API + '?' + params)
-          .then(function(res) { return res.json(); })
+          .then(function(res) {
+            return res.json().then(function(data) {
+              if (!res.ok) {
+                throw new Error(data.error || 'Search failed (' + res.status + ')');
+              }
+              return data;
+            });
+          })
           .then(function(data) {
             renderMatches(data);
           })
-          .catch(function() {
-            renderMatches({ error: 'Network error. Please try again.' });
+          .catch(function(err) {
+            var msg = err.message || 'Network error. Please try again.';
+            renderMatches({ error: msg });
           })
           .finally(function() {
             submitBtn.disabled = false;
