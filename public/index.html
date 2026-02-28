@@ -169,7 +169,22 @@
 
         fetch(SEARCH_API + '?' + params)
           .then(function(res) {
-            return res.json().then(function(data) {
+            return res.text().then(function(text) {
+              var data;
+              try {
+                data = text && text.trim().startsWith('{') ? JSON.parse(text) : null;
+              } catch (e) {
+                data = null;
+              }
+              if (data === null) {
+                if (res.ok) {
+                  throw new Error('Search returned invalid response.');
+                }
+                if (text && text.trim().startsWith('<')) {
+                  throw new Error('Search service returned an error page (' + res.status + '). Try again in a moment.');
+                }
+                throw new Error('Search failed (' + res.status + ').');
+              }
               if (!res.ok) {
                 throw new Error(data.error || 'Search failed (' + res.status + ')');
               }
